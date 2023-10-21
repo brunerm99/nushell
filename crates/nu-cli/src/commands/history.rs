@@ -64,8 +64,17 @@ impl Command for History {
             }
 
             if clear {
-                let _ = std::fs::remove_file(history_path);
-                // TODO: FIXME also clear the auxiliary files when using sqlite
+                match engine_state.config.history_file_format {
+                    HistoryFileFormat::PlainText => {
+                        let _ = std::fs::remove_file(history_path);
+                    }
+                    HistoryFileFormat::Sqlite => {
+                        SqliteBackedHistory::with_file(history_path, None, None)
+                            .and_then(|mut h| h.clear())
+                            // TODO: Better error mapping
+                            .map_err(|_err| ShellError::FileNotFound(head))?;
+                    }
+                }
                 Ok(PipelineData::empty())
             } else {
                 let history_reader: Option<Box<dyn ReedlineHistory>> =
